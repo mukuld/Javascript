@@ -1,0 +1,159 @@
+{
+    "timestamp": "string",
+    "eventId": "string",
+    "version": "2.0",
+    "accountId": "string",
+    "projectName": "string",
+    "projectId": "string",
+    "eventType": "measurement|gatewayConnected|gatewayDisconnected|sensorConnected|sensorDisconnected|assetStateTransition",
+    // measurement
+    "eventPayload": {
+        "siteName": "string",
+        "assetName": "string",
+        "positionName": "string",
+        "assetPositionURL": "string",
+        "sensor": {
+            "physicalId": "string",
+            "rssi": number
+        },
+        "gateway": {
+            "physicalId": "string"
+        },
+        "sequenceNo": number,
+        "features": {
+            "acceleration": {
+                "band0To6000Hz": {
+                    "xAxis": {
+                        "rms": number
+                    },
+                    "yAxis": {
+                        "rms": number
+                    },
+                    "zAxis": {
+                        "rms": number
+                    }
+                },
+                "band10To1000Hz": {
+                    "totalVibration": {
+                        "absMax": number,
+                        "absMin": number,
+                        "crestFactor": number,
+                        "rms": number
+                    },
+                    "xAxis": {
+                        "rms": number
+                    },
+                    "yAxis": {
+                        "rms": number
+                    },
+                    "zAxis": {
+                        "rms": number
+                    }
+                }
+            },
+            "velocity": {
+                "band10To1000Hz": {
+                    "totalVibration": {
+                        "absMax": number,
+                        "absMin": number,
+                        "crestFactor": number,
+                        "rms": number
+                    },
+                    "xAxis": {
+                        "rms": number
+                    },
+                    "yAxis": {
+                        "rms": number
+                    },
+                    "zAxis": {
+                        "rms": number
+                    }
+                }
+            },
+            "temperature": number
+        }
+        "models": {
+            "temperatureML": {
+                "previousPersistentClassificationOutput": "string",
+                "persistentClassificationOutput": "string",
+                "pointwiseClassificationOutput": "string"
+            },
+            "vibrationISO": {
+                "isoClass": "string",
+                "mutedThreshold": "string",
+                "previousPersistentClassificationOutput": "string",
+                "persistentClassificationOutput": "string",
+                "pointwiseClassificationOutput": "string"
+            },
+            "vibrationML": {
+                "previousPersistentClassificationOutput": "string",
+                "persistentClassificationOutput": "string",
+                "pointwiseClassificationOutput": "string"
+            }
+        }
+    }
+    
+    // sensorConnected
+    "eventPayload": {
+        "siteName": "string",
+        "assetName": "string",
+        "positionName": "string",
+        "assetPositionURL": "string",
+        "sensor": {
+            "physicalId": "string"
+        }
+    }
+    
+    // sensorDisconnected
+    "eventPayload": {
+        "siteName": "string",
+        "assetName": "string",
+        "positionName": "string",
+        "assetPositionURL": "string",
+        "sensor": {
+            "physicalId": "string"
+        }
+    }
+    
+    // gatewayConnected
+    "eventPayload": {
+        "siteName": "string",
+        "gatewayName": "string",
+        "gatewayListURL": "string",
+        "gateway": {
+            "physicalId": "string"
+        }
+    }
+    
+    // gatewayDisconnected
+    "eventPayload": {
+        "siteName": "string",
+        "gatewayName": "string",
+        "gatewayListURL": "string",
+        "gateway": {
+            "physicalId": "string"
+        }
+    }
+    
+    // assetStateTransition
+    "eventPayload": {
+        "siteName": "string",
+        "assetName": "string",
+        "positionName": "string",
+        "assetPositionURL": "string",
+        "sensor": {
+            "physicalId": "string"
+        },
+        "assetTransitionType": "measurement|userInput"
+        "assetState": {
+            "newState": "string",
+            "previousState": "string"
+        },
+        "closureCode": {
+            "failureMode": "string",
+            "failureCause": "string",
+            "actionTaken": "string",
+            "resolvedModels": list<"string">
+        }
+    }
+}

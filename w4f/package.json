@@ -1,0 +1,29 @@
+{
+  "name": "work4flow",
+  "version": "1.0.0",
+  "description": "Get JSN Objects from S3",
+  "main": "getObjects.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mukuld/work4flow.git"
+  },
+  "keywords": [
+    "AWS",
+    "S3",
+    "JS",
+    "ServiceNow"
+  ],
+  "author": "Mukul Dharwadkar",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mukuld/work4flow/issues"
+  },
+  "homepage": "https://github.com/mukuld/work4flow#readme",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.554.0",
+    "axios": "^1.6.8"
+  }
+}
