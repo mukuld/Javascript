@@ -6,17 +6,17 @@ export const handler = async (event) => {
     const bucketName = event.bucketName || process.env.bucket_name; // Replace with default if not provided
     const fileName = process.env.file_name;
 
-    const apiUrl = process.env.apiURL
+    const apiUrl = process.env.apiURL;
     
     // Create S3 client
-    const s3Client = new S3Client({ region: "us-west-2" });
+    const s3Client = new S3Client({ region: "us-east-1" });
     
     try {
-        const objectKeys = await listObjectsInBucket(s3Client, bucketName);
+        const objectKeys = await listObjectsInBucket(s3Client, bucketName, fileName);
 
         for (const objectKey of objectKeys) {
             if (objectKey !== fileName) {
-                continue
+                continue;
             } else {
 
                 const objectData = await getObjectFromBucket(s3Client, bucketName, objectKey);
@@ -24,7 +24,7 @@ export const handler = async (event) => {
                 
                 // Send POST request
                 const postResponse = await postToSNOW(apiUrl, objectString);
-                console.log("Posting to ServiceNow begins...")
+                console.log("Posting to ServiceNow begins...");
                 console.log(`Object "${objectKey}":\n`, objectString);
             }
         }
@@ -42,7 +42,7 @@ export const handler = async (event) => {
     }
 };
 
-async function listObjectsInBucket(s3Client, bucketName) {
+async function listObjectsInBucket(s3Client, bucketName,fileName) {
     try {
         const command = new ListObjectsV2Command({ 
             Bucket: bucketName
@@ -50,7 +50,7 @@ async function listObjectsInBucket(s3Client, bucketName) {
         const response = await s3Client.send(command);
 
         const objectKeys = response.Contents.map((object) => object.Key);
-        console.log("File name is: ", objectKeys)
+        console.log("File name is: ", objectKeys.slice(-fileName.length));
         return objectKeys;
     } catch (err) {
         console.error("Error listing objects:", err);
@@ -61,7 +61,7 @@ async function listObjectsInBucket(s3Client, bucketName) {
 async function getObjectFromBucket(s3Client, bucketName, objectKey) {
     try {
         const command = new GetObjectCommand({ Bucket: bucketName, Key: objectKey });
-        console.log("The command is: ", command)
+        console.log("The command is: ", command);
         const response = await s3Client.send(command);
         
         return response.Body;
@@ -86,6 +86,10 @@ async function postToSNOW(apiUrl, data) {
             headers: {
                 'Content-Type': 'application/json',
             },
+            auth: {
+                username: process.env.username,
+                password: process.env.password
+            }
         });
         
         // Check HTTP status code and handle different cases

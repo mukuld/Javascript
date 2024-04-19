@@ -1,32 +1,28 @@
 import { S3Client, ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
-import axios from "axios";
+//import axios from "axios";
 import { Readable } from "stream";
 
 export const handler = async (event) => {
     const bucketName = event.bucketName || process.env.bucket_name; // Replace with default if not provided
-    const fileName = process.env.file_name;
+    //const filePath = process.env.file_path;
 
-    const apiUrl = process.env.apiURL;
+    const apiUrl = process.env.api_url;
     
     // Create S3 client
     const s3Client = new S3Client({ region: "us-east-1" });
     
     try {
-        const objectKeys = await listObjectsInBucket(s3Client, bucketName, fileName);
+        const objectKeys = await listObjectsInBucket(s3Client, bucketName);
 
         for (const objectKey of objectKeys) {
-            if (objectKey !== fileName) {
-                continue;
-            } else {
-
                 const objectData = await getObjectFromBucket(s3Client, bucketName, objectKey);
-                const objectString = await streamToString(objectData);
+                //const objectString = await streamToString(objectData);
                 
                 // Send POST request
-                const postResponse = await postToSNOW(apiUrl, objectString);
+                const postResponse = await postToSNOW(apiUrl, objectData);
+                console.log(postResponse)
                 console.log("Posting to ServiceNow begins...");
-                console.log(`Object "${objectKey}":\n`, objectString);
-            }
+                //console.log(`Object "${objectKey}":\n`, objectData);
         }
 
         return {
@@ -42,15 +38,12 @@ export const handler = async (event) => {
     }
 };
 
-async function listObjectsInBucket(s3Client, bucketName,fileName) {
+async function listObjectsInBucket(s3Client, bucketName) {
     try {
-        const command = new ListObjectsV2Command({ 
-            Bucket: bucketName
-         });
+        const command = new ListObjectsV2Command({ Bucket: bucketName });
         const response = await s3Client.send(command);
 
         const objectKeys = response.Contents.map((object) => object.Key);
-        console.log("File name is: ", objectKeys.slice(-fileName.length));
         return objectKeys;
     } catch (err) {
         console.error("Error listing objects:", err);
@@ -61,10 +54,13 @@ async function listObjectsInBucket(s3Client, bucketName,fileName) {
 async function getObjectFromBucket(s3Client, bucketName, objectKey) {
     try {
         const command = new GetObjectCommand({ Bucket: bucketName, Key: objectKey });
-        console.log("The command is: ", command);
         const response = await s3Client.send(command);
+        const objectData = response.Body
+       // const objectString = await streamToString(response.Body);
+        const formattedRecord = {records: [objectData]}
+        console.log("Formatted Record:", formattedRecord)
         
-        return response.Body;
+        return formattedRecord
     } catch (err) {
         console.error(`Error retrieving object "${objectKey}":`, err);
         throw err;
@@ -81,15 +77,15 @@ async function streamToString(stream) {
 
 async function postToSNOW(apiUrl, data) {
     try {
-        // Send POST request to the API URL with the data
-        const response = await axios.post(apiUrl, data, {
+         // Use fetch to send a POST request to the API URL with the data
+         const response = await fetch(apiUrl, {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Basic ${Buffer.from(`${process.env.username}:${process.env.password}`).toString('base64')}`
             },
-            auth: {
-                username: process.env.username,
-                password: process.env.password
-            }
+            body: JSON.stringify(data)
+            //body: data
         });
         
         // Check HTTP status code and handle different cases
