@@ -1,5 +1,6 @@
-import { S3Client, ListObjectsV2Command, GetObjectCommand } from "@aws-sdk/client-s3";
-//import axios from "axios";
+import { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, CopyObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import axios from "axios";
+import { clear } from "console";
 import { Readable } from "stream";
 
 export const handler = async (event) => {
@@ -15,14 +16,23 @@ export const handler = async (event) => {
         const objectKeys = await listObjectsInBucket(s3Client, bucketName);
 
         for (const objectKey of objectKeys) {
-                const objectData = await getObjectFromBucket(s3Client, bucketName, objectKey);
-                //const objectString = await streamToString(objectData);
-                
+            const objectData = await getObjectFromBucket(s3Client, bucketName, objectKey);
+
+            // Check if objectData is empty, if yes, skip processing
+            if (!isEmptyObject(objectData)) {
                 // Send POST request
-                const postResponse = await postToSNOW(apiUrl, objectData);
-                console.log(postResponse)
                 console.log("Posting to ServiceNow begins...");
-                //console.log(`Object "${objectKey}":\n`, objectData);
+                console.log(`Object "${objectKey}":\n`, objectData);
+                const postResponse = await postToSNOW(apiUrl, objectData);
+                console.log(postResponse);
+                
+                // Move the innermost folder to the new bucket
+                //const newBucketName = "monitor-s3bucket-olddata";
+                //const newObjectKey = objectKey.substring(objectKey.lastIndexOf('/') + 1);
+                //console.log("I will move these objects to different bucket: ", newBucketName, "/", newObjectKey);
+                //await moveObjectToBucket(s3Client, bucketName, newBucketName, objectKey, newObjectKey);
+                
+            }
         }
 
         return {
@@ -55,12 +65,29 @@ async function getObjectFromBucket(s3Client, bucketName, objectKey) {
     try {
         const command = new GetObjectCommand({ Bucket: bucketName, Key: objectKey });
         const response = await s3Client.send(command);
-        const objectData = response.Body
-       // const objectString = await streamToString(response.Body);
-        const formattedRecord = {records: [objectData]}
-        console.log("Formatted Record:", formattedRecord)
-        
-        return formattedRecord
+        const objectString = await streamToString(response.Body);
+        let convertedArray = [objectString];
+        convertedArray = removeSingleQuotes(JSON.stringify(convertedArray));
+        console.log("Converted Array is: ", JSON.stringify(convertedArray));
+        let cleanformattedRecord = removeSingleQuotes(convertedArray);
+        cleanformattedRecord = removeBackslashes(cleanformattedRecord);
+        cleanformattedRecord = removeDoubleQuoteAfterChar(cleanformattedRecord, ']');
+        cleanformattedRecord = removeDoubleQuoteBeforeChar(cleanformattedRecord, '[');
+        console.log("Clean Formatted Record:", cleanformattedRecord);
+
+        // const jsonData = JSON.parse(cleanformattedRecord);
+        // let recordsSkipped = 0;
+        // for (const record of jsonData) {
+        //     if (isEmptyObject(record)) {
+        //         recordsSkipped++;
+        //     }
+        // }
+
+        // if (recordsSkipped > 0) {
+        //     console.log(`Skipped ${recordsSkipped} record(s) with empty values.`);
+        // }
+
+        return cleanformattedRecord;
     } catch (err) {
         console.error(`Error retrieving object "${objectKey}":`, err);
         throw err;
@@ -77,20 +104,27 @@ async function streamToString(stream) {
 
 async function postToSNOW(apiUrl, data) {
     try {
-         // Use fetch to send a POST request to the API URL with the data
-         const response = await fetch(apiUrl, {
-            method: 'POST',
+        const jsonData = JSON.stringify(data);
+        console.log("Stringified before cleaning:", jsonData);
+        let cleanData = removeBackslashes(jsonData);
+        cleanData = removeSingleQuotes(cleanData); 
+        cleanData = removeDoubleQuoteAfterChar(cleanData, '[');
+        cleanData = removeDoubleQuoteAfterChar(cleanData, ']');
+        cleanData = removeDoubleQuoteBeforeChar(cleanData, ']');
+        cleanData = removeDoubleQuoteBeforeChar(cleanData, '[');
+        console.log("Clean Data sending to ServiceNow:", cleanData);
+
+        const response = await axios.post(apiUrl, cleanData, {
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${Buffer.from(`${process.env.username}:${process.env.password}`).toString('base64')}`
             },
-            body: JSON.stringify(data)
-            //body: data
+            auth: {
+                username: process.env.username,
+                password: process.env.password
+            }
         });
         
-        // Check HTTP status code and handle different cases
         if (response.status >= 200 && response.status < 300) {
-            // Success: Log the response data and return it
             const responseData = response.data;
             console.log("Response from API:", responseData);
             return {
@@ -98,7 +132,6 @@ async function postToSNOW(apiUrl, data) {
                 body: JSON.stringify(responseData),
             };
         } else {
-            // Handle other status codes appropriately
             console.error(`Received HTTP status code ${response.status}`);
             return {
                 statusCode: response.status,
@@ -106,7 +139,6 @@ async function postToSNOW(apiUrl, data) {
             };
         }
     } catch (error) {
-        // Handle errors during POST request
         console.error("Error during POST request:", error);
         
         return {
@@ -116,26 +148,52 @@ async function postToSNOW(apiUrl, data) {
     }
 }
 
-/*
-async function postToSNOW(apiUrl, data) {
+function removeBackslashes(jsonString) {
+    const cleanedJsonString = jsonString.replace(/\\/g, '');
+    return cleanedJsonString;
+}
+
+function removeSingleQuotes(jsonString) {
+    const cleanedJsonString = jsonString.replace(/'/g, '');
+    return cleanedJsonString;
+}
+
+function removeDoubleQuoteBeforeChar(jsonString, targetChar) {
+    const escapedTargetChar = targetChar.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`"(?=${escapedTargetChar})`, 'g');
+    const cleanedJsonString = jsonString.replace(regex, '');
+    return cleanedJsonString;
+}
+
+function removeDoubleQuoteAfterChar(jsonString, targetChar) {
+    const escapedTargetChar = targetChar.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`(?<=${escapedTargetChar})"`, 'g');
+    const cleanedJsonString = jsonString.replace(regex, '');
+    return cleanedJsonString;
+}
+
+function isEmptyObject(obj) {
+    return Object.keys(obj).length === 0 && obj.constructor === Object;
+}
+
+async function moveObjectToBucket(s3Client, sourceBucket, destinationBucket, sourceKey, destinationKey) {
     try {
-        const response = await axios.post(apiUrl, data, {
-            headers: {
-                'Content-Type': 'application/json',
-            },
+        const copyCommand = new CopyObjectCommand({
+            CopySource: `${sourceBucket}/${sourceKey}`,
+            Bucket: destinationBucket,
+            Key: destinationKey
         });
-        
-        return {
-            statusCode: 200,
-            body: JSON.stringify(response.data),
-        };
-    } catch (error) {
-        console.error("Error during POST request:", error);
-        
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ error: "Internal Server Error" }),
-        };
+        await s3Client.send(copyCommand);
+
+        const deleteCommand = new DeleteObjectCommand({
+            Bucket: sourceBucket,
+            Key: sourceKey
+        });
+        await s3Client.send(deleteCommand);
+
+        console.log(`Object "${sourceKey}" moved to bucket "${destinationBucket}" with key "${destinationKey}"`);
+    } catch (err) {
+        console.error(`Error moving object "${sourceKey}" to bucket "${destinationBucket}":`, err);
+        throw err;
     }
 }
-*/
