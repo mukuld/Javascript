@@ -34,13 +34,13 @@ async function combineInstanceAndVolumeData(instancesFilePath, volumesFilePath, 
         }, {});
 
         const combinedData = instancesData.map(instance => {
-            const { InstanceID, InstanceType, VolumeIDs } = instance;
+            const { InstanceID, InstanceType, VolumeIDs, Name } = instance;
             const volumes = VolumeIDs.map(volumeId => {
                 const volumeDetails = volumeMap[volumeId] || { Size: 'N/A', VolumeType: 'N/A', Iops: 'N/A', Throughput: 'N/A' };
                 return { VolumeID: volumeId, ...volumeDetails };
             });
 
-            return { InstanceID, InstanceType, Volumes: volumes };
+            return { InstanceID, InstanceType, Name, Volumes: volumes };
         });
 
         await writeJSONFile(outputFilePath, combinedData);
@@ -49,7 +49,7 @@ async function combineInstanceAndVolumeData(instancesFilePath, volumesFilePath, 
     }
 }
 
-const instancesFilePath = './extracted_instance_data.json'; // Path to the instances output file
+const instancesFilePath = './extracted_instance_data2.json'; // Path to the instances output file
 const volumesFilePath = './ec2-volumes.json'; // Path to the volumes file
-const outputFilePath = './combined_instance_volume_data.json'; // Path to the output file
+const outputFilePath = './combined_instance_volume_data2.json'; // Path to the output file
 combineInstanceAndVolumeData(instancesFilePath, volumesFilePath, outputFilePath);
